@@ -70,72 +70,102 @@ def get_example_sentence(w: str) -> dict:
     # For Successful responses:
     if response.status_code == 200:
         
-        # let's change the response into something we can parse.
-        html_content = response.text
+        try:
+        
+            # let's change the response into something we can parse.
+            html_content = response.text
 
-        # Now, we parse it.
-        soup = BeautifulSoup(html_content, "html.parser")
-        
-        # Here's a laundry list of what we want from the page:
-        #   - the word
-        #   - the word's pinyin pronounciation
-        #   - the word's english meaning
-        #   - an example sentence
-        #   - the example sentence's meaning in english
-        
-        word:       str = ""
-        pinyin:     str = ""
-        definition: str = ""
-        ex_sentence:        str = ""
-        ex_sentence_transl: str = ""
-        ex_sentence_pinyin: str = ""
-        
-        # This element contains the word and it's pinyin.
-        word_block = soup.find("ruby", class_="mainsc")
-        
-        # Step 1: Extract the word.
-        word_block_hanzi_elements = word_block.find_all("a", recursive=False)
-        for element in word_block_hanzi_elements:
-            word += element.text.strip()
-        
-        # Step 2: Extract the pinyin.
-        word_block_pinyin_elements = word_block.find_all("rt")
-        for element in word_block_pinyin_elements:
-            pinyin += element.text.strip()
-
-        # Step 3: Extract the meaning.
-        definition = soup.find("div", class_="en py-2").text.strip()
-        
-        # Step 4. Extract the Example sentence
-        ex_sentence_elements = soup.find(id="sen1").find_all("span", class_="cnchar")
-        for element in ex_sentence_elements:
-            ex_sentence += element.text.strip()
+            # Now, we parse it.
+            soup = BeautifulSoup(html_content, "html.parser")
             
-        # Step 5: Extract Example Sentence translation.
-        ex_sentence_transl = soup.find(id="ensen1").text.strip()
-        
-        # Step 6: Get the Sentence Pinyin.
-        ex_sentence_pinyin = str(soup.find(id="ppysen1")['value'])
-        # Comes out like this: "wo3 xi3 huan1||ting1||liu2 xing2||yin1 yue4|| ||||"
-        # Let's fix that.
-        ex_sentence_pinyin = ex_sentence_pinyin.replace(" ", "").replace("||", " ").strip()
-        # Now we can convert it to proper pinyin letters.
-        pinyin_list: list[str] = ex_sentence_pinyin.split()
-        for i in range(len(pinyin_list)):
-            pinyin_list[i] = dc.decode_pinyin(pinyin_list[i])
-        ex_sentence_pinyin = " ".join(pinyin_list)
-        
-        return {
-            "word" : word,
-            "pinyin" : pinyin,
-            "definition" : definition,
-            "ex_sentence" : ex_sentence,
-            "ex_sentence_pinyin" : ex_sentence_pinyin,
-            "ex_sentence_transl" : ex_sentence_transl
-        }
+            # Here's a laundry list of what we want from the page:
+            #   - the word
+            #   - the word's pinyin pronounciation
+            #   - the word's english meaning
+            #   - an example sentence
+            #   - the example sentence's meaning in english
+            
+            word:       str = ""
+            pinyin:     str = ""
+            definition: str = ""
+            ex_sentence:        str = ""
+            ex_sentence_transl: str = ""
+            ex_sentence_pinyin: str = ""
+            
+            # This element contains the word and it's pinyin.
+            word_block = soup.find("ruby", class_="mainsc")
+            
+            # Step 1: Extract the word.
+            word_block_hanzi_elements = word_block.find_all("a", recursive=False)
+            for element in word_block_hanzi_elements:
+                word += element.text.strip()
+            
+            # Step 2: Extract the pinyin.
+            word_block_pinyin_elements = word_block.find_all("rt")
+            for element in word_block_pinyin_elements:
+                pinyin += element.text.strip()
+
+            # Step 3: Extract the meaning.
+            definition = soup.find("div", class_="en py-2").text.strip()
+            
+            # Step 4. Extract the Example sentence
+            ex_sentence_elements = soup.find(id="sen1").find_all("span", class_="cnchar")
+            for element in ex_sentence_elements:
+                ex_sentence += element.text.strip()
+                
+            # Step 5: Extract Example Sentence translation.
+            ex_sentence_transl = soup.find(id="ensen1").text.strip()
+            
+            # Step 6: Get the Sentence Pinyin.
+            ex_sentence_pinyin = str(soup.find(id="ppysen1")['value'])
+            # Comes out like this: "wo3 xi3 huan1||ting1||liu2 xing2||yin1 yue4|| ||||"
+            # Let's fix that.
+            ex_sentence_pinyin = ex_sentence_pinyin.replace(" ", "").replace("||", " ").strip()
+            # Now we can convert it to proper pinyin letters.
+            pinyin_list: list[str] = ex_sentence_pinyin.split()
+            for i in range(len(pinyin_list)):
+                pinyin_list[i] = dc.decode_pinyin(pinyin_list[i])
+            ex_sentence_pinyin = " ".join(pinyin_list)
+            
+            return {
+                "word" : word,
+                "pinyin" : pinyin,
+                "definition" : definition,
+                "ex_sentence" : ex_sentence,
+                "ex_sentence_pinyin" : ex_sentence_pinyin,
+                "ex_sentence_transl" : ex_sentence_transl
+            }
+            
+        except AttributeError:
+            
+            return None
             
     else:
         print("Failed to retrieve the webpage:", response.status_code)
+        
+
+
+
+
+def segmentate(text: str, lookup_file_path: str, lookup_key: str):
+    
+    # 不同意
+    # 不同意思
+    
+    
+    with open(lookup_file_path, encoding="utf8") as file:
+        lookup_json: str = file.read()
+        lookup_table: dict = json.loads(lookup_json)
+        
+        lookup_map: dict[str] = {}
+        
+        for row in lookup_table:
+            lookup_map[row[lookup_key]] = None
+            
+        
+            
+        
+
 
 
 
@@ -178,7 +208,7 @@ with open(SAVED_PATH, encoding="utf8") as saved_file:
 
 # Step 4: Cut the read-in text into segments of language (almost words), and save a list of them that has no duplicates
 segments: list[str] = []
-raw_segments: list[str] = list(jieba.cut(input_text, cut_all=False))
+raw_segments: list[str] = list(jieba.cut_for_search(input_text))
 for segment in raw_segments:
     if segment not in segments:
         segments.append(segment)
@@ -213,7 +243,8 @@ for word in words:
             "word" : word
         }
     )
-    
+
+# TODO: solve the 只 issue. it has multiple entries. all 多音字 do.
 # Step 9: populate with pinyin and meaning.
 with open(CEDICT_PATH, encoding="utf8") as cedict_file:
     cedict_json_str: str = cedict_file.read()
@@ -223,6 +254,11 @@ with open(CEDICT_PATH, encoding="utf8") as cedict_file:
             if deck_entry["word"] == cedict_entry["simplified"]:
                 deck_entry["pinyin"] = cedict_entry["pinyin"]
                 deck_entry["definition"] = cedict_entry["english"]
+                
+        # Catch erroneous words that don't exit accoarding to cedict. Delete them.
+        if "definition" not in deck_entry:
+            print(deck_entry)
+            deck_data.remove(deck_entry)
                 
 # Step 10: populate with example sentence, its meaing, and pinyin.
 with open(SENTENCES_PATH, encoding="utf8") as sentences_file:

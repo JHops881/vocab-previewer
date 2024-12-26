@@ -1,5 +1,4 @@
 import genanki
-import jieba
 import json
 import csv
 import requests
@@ -10,36 +9,25 @@ import time
 # Path to the text that is going to be analyzed and have a deck made from it's unfamiliar vocab.
 INPUT_FILE_PATH: str = "../input/file.txt"
 
-# Path to full word lists of each HSK Level.
+# Path to a (table-like) json file containing the entries of all HSK 2.0 words 1-6 tagged by level.
 HSK_PATH: str = "../data/hsk.json"
 
-# Path to the users known characters.
+# Path to the users known words.
 SAVED_PATH: str = "../data/saved.json"
 
-# Path to punctionation.
-PUNCTUATION_PATH: str = "../data/punctuation.txt"
-
+# Path to the json-fied CE-DECT dictionary -locally containing a best-effort database of all known chinese words
 CEDICT_PATH: str = "../data/cedict.json"
 
+# Path to file containting all our local example sentences
 SENTENCES_PATH: str = "../data/sentences.tsv"
 
 
 
 
-# TODO: Document
-def is_float(element: any) -> bool:
-    try:
-        float(element)
-        return True
-    except ValueError:
-        return False
-    
-
-
-
 def get_example_sentence(w: str) -> dict:
-    """Use web scraping to retrieve a mandarin definition, pinyin, and example sentence
-        with details from a mandarin word.
+    """Use web scraping to retrieve a dictionary info about a mandarin word. Most importatly,
+    it returns an example sentence with its pronounciation and translation. All dictionary
+    information is scraped from purpleculture.net.
 
     Args:
         w (str): Mandarin word.
@@ -147,26 +135,78 @@ def get_example_sentence(w: str) -> dict:
 
 
 
-def segmentate(text: str, lookup_file_path: str, lookup_key: str):
+def segmentate(text: str, lookup_file_path: str, lookup_key: str) -> list[str]:
+    """
+    Uses a custom algorigthm to break text into dictionary words verified by a 
+    local dictionary. Words are returned on a best-guess basis -meaning some 
+    three character strings (e.g. 不同意) will/may return two words (同意, 不同)
+    because the algorigthm is unable to derive contextual meaning.
+
+    Args:
+        text (str): The text to segmentate into dictionary words.
+        lookup_file_path (str): path to a (table-like) json file that contains
+            the dictionary entries to check against.
+        lookup_key: (str): The json key under which the word is stored in each 
+            dictionary entry. 
+
+    Returns:
+        list: A list of all dictionary words identified from the text, mostly in
+            order, and also containing repeats.     
+    """
     
     # 不同意
     # 不同意思
+    # TODO: fix these situations
     
-    
+    ''' This file contains a json list of dictionary entries. Each one has a key
+    value pair with the key "lookup_key". We want to retrieve the value afrom all
+    of them and store in a in a dict so that we can lookup up values faster than
+    iterating through a potentially 119k obj list.'''
     with open(lookup_file_path, encoding="utf8") as file:
-        lookup_json: str = file.read()
-        lookup_table: dict = json.loads(lookup_json)
+    
+        lookup_json_dumped: str = file.read()
+
+        # Parse into python obj (dict).
+        lookup_json_loaded: dict = json.loads(lookup_json_dumped)
         
+        # Let's create our map that is going to store all of the lookup_key values
         lookup_map: dict[str] = {}
         
-        for row in lookup_table:
+        # Extract the values from all the entries in the lookup_json_loaded.
+        for row in lookup_json_loaded:
             lookup_map[row[lookup_key]] = None
             
+        # This will contain the words after it is segmented properly.
+        segments: list[str] = []
         
+        # Custom algo.. how do I begin to explain. TODO: document.
+        def worder(index: int, text: str, seg: str, map: dict, depth: int) -> any:
+            if seg + text[index+1] in map:
+                return worder(index+1, text, seg+text[index+1], map, depth+1)
+            else:
+                return seg, depth
+        
+        # algo v1.0
+        is_child: bool = False
+        for i, char in enumerate(text):
             
+            # is it real?
+            if char in lookup_map:
+                
+                (segment, depth) = worder(i, text, char, lookup_map, 0)
+                
+                if not is_child or (is_child and depth > 0):
+                    segments.append(segment)
+
+                    
+                is_child = depth
+                    
+            # No, Okay we'll deal with this later.
+            else:
+                pass
         
-
-
+        return segments
+            
 
 
 
@@ -206,27 +246,24 @@ with open(SAVED_PATH, encoding="utf8") as saved_file:
     for word_data in saved_data:
         known_words.append(word_data["hanzi"])
 
-# Step 4: Cut the read-in text into segments of language (almost words), and save a list of them that has no duplicates
-segments: list[str] = []
-raw_segments: list[str] = list(jieba.cut_for_search(input_text))
-for segment in raw_segments:
-    if segment not in segments:
-        segments.append(segment)
+# Step 4: Cut the read-in text into words, and save a list of them without duplicates
+words: list[str] = []
+
+# segments has duplicates in it.
+segments: list[str] = segmentate(input_text)
+
+for segment in segments:
+    if segment not in words:
+        words.append(segment)
 
 # Step 5: Now we need to clean up the segment list, by removing punctuation and numbers. (what's left is words only)
-with open(PUNCTUATION_PATH, encoding="utf8") as punct_file:
-    punctuation: str = punct_file.read()
-    i = 0
-    while i <= len(segments) -1:        
-        if segments[i] in punctuation or is_float(segments[i]):
-            segments.pop(i)
-        else:
-            i+=1
-            
-words: list[str] = segments
+        
+# Note on 2024-12-26-Thurs-16:11CDT by Joseph. Since removing jieba, the new segmentate() algorigthm only outputs
+# verified dictionary words -automatically eliminates punctuation, non-mandarin, and insignificant numbers.
 
 # Step 6: Subtract the known words from the words that we have been left with.
 for known_word in known_words:
+
     if known_word in words:
         i = words.index(known_word)
         words.pop(i)
@@ -298,10 +335,12 @@ for deck_entry in deck_data:
         deck_entry["ex_sentence_transl"] = scraped_example["ex_sentence_transl"]
             
 # print(deck_data)
-test=json.dumps(deck_data, ensure_ascii=False, indent=4)
+test=json.dumps(deck_data, ensure_ascii=False, indent=4) # Debug
 print(test)
 
 # Step 12: Covert to an anki deck
+
+
 qfmt: str = ""
 with open("./front.html") as front:
   qfmt = front.read()

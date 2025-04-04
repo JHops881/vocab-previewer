@@ -1,6 +1,22 @@
-# Simplified Mandarin Text Vocabulary Pre-Study Tool
-A tool that will extract unknown vocab from from text and create a full anki deck for you!
+# 📚 Simplified Mandarin Text Vocabulary Pre-Study Tool
+*[A tool that will extract unknown vocab from from text and create a full anki deck for you!]*  
 
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
+
+---
+
+## Development Status
+This project is still in early development, and many features are planned. There is currently no usage guide, as this is only an alpha build.
+
+---
+
+## Planned Features
+- GUI
+- Saving known vocabulary between sessions
+- Vocabulary scoring
+- user 'known vocabulary dictionary' in the GUI
+
+---
 
 ### Credit
 Thank you to CE-DECT for providing the dictionary entries.

@@ -1,2 +1,3 @@
-# smart-anki-deck-extractor
-A tool that will extract vocab from a piece of mandarin media and create a full anki deck for you!
+# Simplified Mandarin Textual Media Vocabulary Previewer Tool
+A tool that will extract unknown vocab from from text and create a full anki deck for you!
+

@@ -4,14 +4,10 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 
 
----
-
 
 ## Development Status
 This project is still in early development, and many features are planned. There is currently no usage guide, as this is only an alpha build.
 
-
----
 
 
 ## Planned Features
@@ -20,8 +16,6 @@ This project is still in early development, and many features are planned. There
 - Vocabulary scoring
 - user 'known vocabulary dictionary' in the GUI
 
-
----
 
 
 ### Credit

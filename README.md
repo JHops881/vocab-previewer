@@ -1,5 +1,5 @@
-# 📚 Simplified Mandarin Text Vocabulary Pre-Study Tool
-*[A tool that will extract unknown vocab from from text and create a full anki deck for you!]*  
+# 📚 Yuxi Boss
+*[Lightweight Mandarin pre-study tool with support for Anki]*  
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 

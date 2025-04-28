@@ -5,6 +5,8 @@ import requests
 from bs4 import BeautifulSoup
 from tools import decode_pinyin as dc
 import time
+import os 
+import sys
 
 # Path to the text that is going to be analyzed and have a deck made from it's unfamiliar vocab.
 INPUT_FILE_PATH: str = "../input/file.txt"
@@ -207,8 +209,8 @@ def segmentate(text: str, lookup_file_path: str, lookup_key: str) -> list[str]:
         
         return segments
             
-
-
+# Fix for some computers not executing in the proper dir.
+os.chdir( os.path.dirname( sys.argv[0] ) )
 
 # Step 1: Read in the input text.
 input_text: str = ""
@@ -250,7 +252,7 @@ with open(SAVED_PATH, encoding="utf8") as saved_file:
 words: list[str] = []
 
 # segments has duplicates in it.
-segments: list[str] = segmentate(input_text)
+segments: list[str] = segmentate(input_text, CEDICT_PATH, "simplified")
 
 for segment in segments:
     if segment not in words:

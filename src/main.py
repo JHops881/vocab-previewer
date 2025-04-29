@@ -1,198 +1,154 @@
-import genanki
-import json
-import csv
-from tools import decode_pinyin as dc
-import os 
-import sys
+from tkinter import *
+from tkinter import ttk, filedialog
+from tkinter import scrolledtext
+from typing import Callable
 
-from deck import Deck
-from segmentate import segmentate
+from prestudy_routine import prestudy_routine
+# from functools import wraps
 
-# Path to the text that is going to be analyzed and have a deck made from it's unfamiliar vocab.
-INPUT_FILE_PATH: str = "../input/file.txt"
+global input_file_path
+global hsk_level_selector
+global selected_input_option
+global paste_text_box
+global file_upload_button
+global generate_button
 
-# Path to a (table-like) json file containing the entries of all HSK 2.0 words 1-6 tagged by level.
-HSK_PATH: str = "../data/hsk.json"
+UPLOAD = "upload"
+PASTE  = "paste"
 
-# Path to the users known words.
-SAVED_PATH: str = "../data/saved.json"
-
-# Path to the json-fied CE-DECT dictionary -locally containing a best-effort database of all known chinese words
-CEDICT_PATH: str = "../data/cedict.json"
-
-# Path to file containing all our local example sentences
-SENTENCES_PATH: str = "../data/sentences.tsv"
-
-
-            
-# Fix for some computers not executing in the proper dir.
-os.chdir( os.path.dirname( sys.argv[0] ) )
-
-# Read in the input text.
-input_text: str = ""
-with open(INPUT_FILE_PATH, encoding="utf8") as input_file:
-    input_text = input_file.read()
-
-# Get the highest HSK 2.0 level that the user has completed.
-waiting_for_level: bool = True
-user_hsk_level: int = 0
-while waiting_for_level:
-    try:
-        input_u: str = input("Enter your HSK 2.0 level (highest level which you have fully completed) e.g. '3': ")
-        user_hsk_level = int(input_u) # TODO: This may not be the best method.
-        if 0 <= user_hsk_level <= 6:
-            waiting_for_level = False
-    except:
-        print("Some sort of invalid input received; just input a whole number.")
-
-
-# Load in a list of all the words that the user knows from both HSK and saved.
-known_words: list[str] = []
-
-# First, the HSK words.
-with open(HSK_PATH, encoding="utf8") as hsk_file:
-    hsk_json: str = hsk_file.read()
-    hsk_data: list[dict] = json.loads(hsk_json)
-    for word_data in hsk_data:
-        if word_data["HSK"] <= user_hsk_level:
-            known_words.append(word_data["hanzi"])
-            
-# Second, the saved known words.
-with open(SAVED_PATH, encoding="utf8") as saved_file:
-    saved_json: str = saved_file.read()
-    saved_data: list[dict] = json.loads(saved_json)
-    for word_data in saved_data:
-        known_words.append(word_data["hanzi"])
-
-# Cut the read-in text into words, and save a list of them without duplicates
-words: list[str] = []
-
-# segments has duplicates in it.
-segments: list[str] = segmentate(input_text, CEDICT_PATH, "simplified")
-
-for segment in segments:
-    if segment not in words:
-        words.append(segment)
-
-# Now we need to clean up the segment list, by removing punctuation and numbers. (what's left is words only)
-        
-# Note on 2024-12-26-Thurs-16:11CDT by Joseph. Since removing jieba, the new segmentate() algorigthm only outputs
-# verified dictionary words -automatically eliminates punctuation, non-mandarin, and insignificant numbers.
-
-# Subtract the known words from the words that we have been left with.
-for known_word in known_words:
-
-    if known_word in words:
-        i = words.index(known_word)
-        words.pop(i)
-
-# Let's initialize a data structure that will hold our
-# words, pinyin, meaning, example sentence, example sentence pinyin, and example sentence meaning.
-# This is the final step before moving on to exporting this data into an ANKI deck.
-deck: Deck = Deck()
-
-# populate with words.
-for word in words:
-    deck.add_new_card(word)
-
-# TODO: solve the 只 issue. it has multiple entries. all 多音字 do.
-# populate with pinyin and meaning.
-with open(CEDICT_PATH, encoding="utf8") as cedict_file:
-    cedict_json_str: str = cedict_file.read()
-    cedict: list[dict] = json.loads(cedict_json_str)
+def log(func: Callable):
+    def wrapper(*args, **kwargs):
+        print(f"Calling `{func.__name__}` with arguments {args} and {kwargs}")
+        value = func(*args, **kwargs)
+        print("Success.")
+        return value
+    return wrapper
     
-    for card in deck.cards:
-        for cedict_entry in cedict:
-            if card.word == cedict_entry["simplified"]:
-                card.word_pinyin = cedict_entry["pinyin"]
-                card.word_translation = cedict_entry["english"]
-                
-        # Catch erroneous words that don't exist according to cedict. Delete them.
-        if card.word_translation == "":
-            print(f"DEFINITION FOR {card.word} DOES NOT EXIST")
-            deck.cards.remove(card)
-                
-# populate with example sentence, its meaning, and pinyin.
-with open(SENTENCES_PATH, encoding="utf8") as sentences_file:
-    tatoeba_sentence_entries: list[str] = list(csv.reader(sentences_file, delimiter="\t"))
-    for card in deck.cards:
-        for entry in tatoeba_sentence_entries:
-            if card.word in entry[0]:
-                
-                #TODO: SMART LEVELING
-                #TODO: 不同 is in 不同意! Fix this!
-                
-                card.sentence             = entry[0]
-                card.sentence_pinyin      = entry[1]
-                card.sentence_translation = entry[2]
-                break
-            
-# Some of the words don't have example sentences. We need to scrape the web to retrieve them.
-for card in deck.cards:
-    if card.sentence == "":
+
+@log
+def upload_file():
+    global input_file_path
+    input_file_path = filedialog.askopenfilename(title="Select a file", filetypes=[("Text files", ".txt"), ("All files", ".*")])
+    print("file path: " + input_file_path)
+    if input_file_path:
+        generate_button["state"] = NORMAL
+
+@log
+def toggle_input_options():
+    if selected_input_option.get() == UPLOAD:
+        file_upload_button["state"] = NORMAL
+        paste_text_box["state"] = DISABLED
+
+        paste_text_box.grid_forget()
+        file_upload_button.grid(column=0, row=4, sticky=W)
+
+    elif selected_input_option.get() == PASTE:
+        file_upload_button["state"] = DISABLED
+        paste_text_box["state"] = NORMAL
+
+        file_upload_button.grid_forget()
+        paste_text_box.grid(column=0, row=4, sticky=W)
+
+
+@log
+def generate_event():
+    
+    generate_button["state"] = DISABLED
+
+    input_text: str = ""
+    user_hsk_level: int = int(hsk_level_selector.get())
+
+    if selected_input_option.get() == UPLOAD:
+        with open(input_file_path, encoding="utf8") as input_file:
+            input_text = input_file.read()
+
+    elif selected_input_option.get() == PASTE:
+        input_text = paste_text_box.get()
+
+    prestudy_routine(input_text, user_hsk_level)
+
+    generate_button["state"] = NORMAL
         
-        print(f"No local example found for: {card.word}")
-        print("Retrieving one from online.")
 
-        # TODO: Need to find another way to get missing examples
-            
-deck.print()
+# Initializes Tk and creates its associated Tcl interpreter.
+# It also creates a toplevel window, known as the root window,
+# which serves as the main window of the application.
+root = Tk()
 
-# Covert to an anki deck
-qfmt: str = ""
-with open("./front.html") as front:
-  qfmt = front.read()
+tab_control = ttk.Notebook(root)
 
-afmt: str = ""
-with open("./back.html") as back:
-  afmt = back.read()
-  
-css: str = ""
-with open("./style.css") as f:
-  css = f.read()
-  
-my_model = genanki.Model(
-    1907462364,
-    'Simple Model',
-    fields=[
-        {'name': 'Word'},
-        {'name': 'Pinyin'},
-        {'name': 'Definition'},
-        {'name': 'ExampleSentence'},
-        {'name': 'ExamplePinyin'},
-        {'name': 'ExampleTranslation'},
-    ],
-    css=css,
-    templates=[
-        {
-            'name': 'Card 1',
-            'qfmt': qfmt,
-            'afmt': afmt
-        },
-    ]
+frame_tab_prestudy = ttk.Frame(tab_control, padding=10)
+frame_tab_prestudy.grid()
+
+frame_tab_quick_add = ttk.Frame(tab_control, padding=10)
+frame_tab_quick_add.grid()
+
+frame_tab_dictionary = ttk.Frame(tab_control, padding=10)
+frame_tab_dictionary.grid()
+
+tab_control.add(frame_tab_prestudy, text='Pre-study')
+tab_control.add(frame_tab_quick_add, text='Quick Add')
+tab_control.add(frame_tab_dictionary, text='My Words Dictionary')
+
+tab_control.pack(expand=1, fill="both")
+
+
+# TAB 1 : TEXT ANALYZER PRESTUDY TOOL
+
+ttk.Label(frame_tab_prestudy, text="Highest HSK Level Completed:").grid(column=0, row=0) 
+
+hsk_levels = [0, 1, 2, 3, 4, 5, 6]
+hsk_level_selector = ttk.Combobox(
+    frame_tab_prestudy,
+    values=hsk_levels,
+    state="readonly",
+    width=2,
 )
+hsk_level_selector.grid(column=1, row=0)
+hsk_level_selector.current(1)
+    
+radio_selection = {
+    "Paste Text" : PASTE,
+    "Upload Text File" : UPLOAD,
+}
 
-notes: list[genanki.Note] = []
-for card in deck.cards:
-    notes.append(
-        genanki.Note(
-            model=my_model,
-            fields=[
-                card.word,
-                card.word_pinyin,
-                " ".join(card.word_translation),
-                card.sentence,
-                card.sentence_pinyin,
-                card.sentence_translation
-            ]
-        )
+
+file_upload_button = ttk.Button(
+    frame_tab_prestudy,
+    command=upload_file,
+    text="Upload File"
+)
+file_upload_button.grid(column=0, row=5, sticky=W)
+file_upload_button.config(padding=10)
+
+paste_text_box = scrolledtext.ScrolledText(frame_tab_prestudy, wrap=WORD, width=40, height=10)
+paste_text_box.grid(column=0, row=4, sticky=W)
+
+selected_input_option = StringVar(root, radio_selection["Paste Text"])
+
+toggle_input_options() # Gotta run once to disable upload on startup
+
+row_counter = 2
+for (k,v) in radio_selection.items():
+    temp = ttk.Radiobutton(
+        frame_tab_prestudy,
+        text=k,
+        value=v,
+        variable=selected_input_option,
+        command=toggle_input_options
     )
+    temp.grid(column=0, row=row_counter, sticky=W)
+    row_counter += 1
 
-my_deck = genanki.Deck(
-    1907462364,
-    'TestDeck')
+generate_button = ttk.Button(
+    frame_tab_prestudy,
+    command=generate_event,
+    text="Generate Deck",
+)
+generate_button.grid(column=0, row=6)
+generate_button.config(padding=10, state=DISABLED)
 
-for note in notes:  
-    my_deck.add_note(note)
+root.mainloop()
 
-genanki.Package(my_deck).write_to_file('../output/output.apkg')
+# Writing to config here...
+# ///

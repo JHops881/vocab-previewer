@@ -33,7 +33,10 @@ Install the dependencies
 <pre>
 python3 -m pip install -r requirements.txt
 </pre>
-
+To run, call main.py
+<pre>
+python3 ./src/main.py
+</pre>
 
 ## Development Status
 This project is still in early development, and many features are planned.

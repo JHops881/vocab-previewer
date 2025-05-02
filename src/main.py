@@ -148,7 +148,8 @@ generate_button = ttk.Button(
 generate_button.grid(column=0, row=6)
 generate_button.config(padding=10, state=DISABLED)
 
+
+
+
 root.mainloop()
 
-# Writing to config here...
-# ///
